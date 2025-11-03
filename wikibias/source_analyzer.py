@@ -1,5 +1,7 @@
 from typing import Callable
 import json
+
+from agents import WebSearchTool
 from .schemas import SourceAnalysis, IntegrityReport, ClusteringReport, DiversityReport
 from .llm import extract_json_from_result, create_agent
 
@@ -223,15 +225,56 @@ def verify_claim_against_source(
         except Exception as scrape_error:
             # If we cannot scrape the URL, treat it as a bad source
             print(f"        Failed to scrape URL: {str(scrape_error)[:100]}")
-            return SourceAnalysis(
-                source_id=f"citation [{citation_index}]: {source_url}",
-                analysis_type="verification",
-                report={
-                    "verification_score": 0.0,
-                    "explanation": f"Failed to access or scrape source: {str(scrape_error)[:200]}",
-                    "content_summary": "Source inaccessible - treated as bad source",
-                },
+            # Try and let the LLM score for us.
+            agent = create_agent(
+                name="ClaimVerificationAnalyzer",
+                instructions=f"""
+                You are a staff writer in a prestigious newspaper well regarded for its neutrality and fact checking. 
+                Analyze whether the following source url '{source_url}' verifies the given claim.
+
+                Return a verification score from 0.0 to 1.0 where:
+                - 1.0 = The source strongly verifies the claim with clear evidence
+                - 0.7-0.9 = The source supports the claim with good evidence
+                - 0.5-0.6 = The source partially supports the claim
+                - 0.3-0.4 = The source mentions the topic but doesn't clearly verify the claim
+                - 0.0-0.2 = The source contradicts the claim or doesn't mention it
+
+                Also provide:
+                - A brief summary of what the source actually says
+                - A detailed explanation of how well it verifies the claim
+
+                IMPORTANT: Escape all double quotes in string values as \\"
+
+                Output ONLY valid JSON in this format:
+                {{
+                  "verification_score": <0.0-1.0>,
+                  "content_summary": "brief summary of source content",
+                  "explanation": "detailed explanation of verification analysis"
+                }}
+                """,
+                get_model=get_model,
+                tools=[WebSearchTool]
             )
+
+            result = agent.run(f"Verify this claim against the source:\n\n{claim_text}\n\nSource:\n\n{source_url}")
+            try:
+                data = extract_json_from_result(result)
+                return SourceAnalysis(
+                    source_id=f"citation [{citation_index}]: {source_url}",
+                    analysis_type="verification",
+                    report=data
+                )
+            except Exception as e:
+                print(f"  Warning: Failed to parse verification analysis: {str(e)[:100]}")
+                return SourceAnalysis(
+                    source_id=f"citation [{citation_index}]: {source_url}",
+                    analysis_type="verification",
+                    report={
+                        "verification_score": 0.0,
+                        "explanation": f"Failed to access or scrape source: {str(scrape_error)[:200]}",
+                        "content_summary": "Source inaccessible - treated as bad source",
+                    },
+                )
         
         if not paragraphs:
             # No content extracted - treat as bad source
@@ -282,6 +325,7 @@ def verify_claim_against_source(
                 }}
                 """,
                 get_model=get_model,
+                tools=[WebSearchTool]
             )
             
             prompt = f"""Claim: {claim_text}

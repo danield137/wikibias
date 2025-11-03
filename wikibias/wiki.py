@@ -60,27 +60,43 @@ def get_text_and_refs(title: str):
     # Extract references
     refs = []
     for li in main.select("ol.references > li"):
-        # Extract index from id attribute (e.g., "cite_note-87" -> 87)
+        # Validate this is a proper citation note by checking id
         li_id = li.get("id")
-        if not li_id or not isinstance(li_id, str):
-            continue  # Skip if no id attribute or not a string
-
-        if li_id.startswith("cite_note-"):
-            try:
-                index = int(li_id.replace("cite_note-", ""))
-            except ValueError:
-                continue  # Skip if we can't parse the index
-        else:
+        if not li_id or not isinstance(li_id, str) or not li_id.startswith("cite_note-"):
             continue  # Skip if no proper id attribute
+        
+        # Extract index from data-mw-footnote-number attribute
+        footnote_number = li.get("data-mw-footnote-number")
+        reference = False
+        try:
+            key = footnote_number
+        except (ValueError, TypeError):
+            continue  # Skip if we can't parse the index
+
+        try:
+            int(footnote_number)
+            reference = True
+        except:
+            pass
 
         text = (li.select_one("span.reference-text") or li).get_text(" ", strip=True)
         ext = None
-        for a in li.select("a[href^='http']"):
-            href = a.get("href")
-            if href and isinstance(href, str) and "wikipedia.org" not in href:
-                ext = href
-                break
-        refs.append({"index": index, "text": text, "url": ext})
+        # Look for anchor in cite element
+        cite = li.select_one("cite")
+        if cite:
+            for a in cite.select("a[href^='http']"):
+                href = a.get("href")
+                if href and isinstance(href, str) and "wikipedia.org" not in href:
+                    ext = href
+                    break
+        # Fallback to searching in the entire li if no cite element found
+        if not ext:
+            for a in li.select("a[href^='http']"):
+                href = a.get("href")
+                if href and isinstance(href, str) and "wikipedia.org" not in href:
+                    ext = href
+                    break
+        refs.append({"key": key, "text": text, "url": ext, "kind": "reference" if reference else "note"})
 
     return paragraphs, refs
 

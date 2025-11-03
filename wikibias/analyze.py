@@ -21,7 +21,8 @@ def parse_paragraph_into_claims(paragraph: str, get_model: Callable) -> List[str
         name="ClaimParser",
         instructions="""
         You are a staff writer in a prestigious newspaper well regarded for its neutrality and fact checking. You are a paragraph parser. Given a paragraph, extract individual claims or sentences.
-        Each claim should be a standalone statement that can be analyzed independently.
+        Each claim should be a standalone statement that can be analyzed independently. 
+        INCLUDE citation markers (e.g., [1], [2]) as they appear in the text !!
         
         CRITICAL: You MUST ALWAYS return ONLY a valid JSON object. Never return plain text, explanations, or any other format.
         If you cannot parse the paragraph or have no results, return {"claims": []}.
@@ -35,12 +36,12 @@ def parse_paragraph_into_claims(paragraph: str, get_model: Callable) -> List[str
         }
         
         Example:
-        Input: "The war began on October 7, 2023. Hamas launched a surprise attack. Over 1,000 people were killed."
+        Input: "The war began on October 7, 2023 [1]. Hamas launched a surprise attack [3][4][5]. Over 1,000 people were killed [2]."
         Output: {
           "claims": [
-            "The war began on October 7, 2023.",
-            "Hamas launched a surprise attack.",
-            "Over 1,000 people were killed."
+            "The war began on October 7, 2023. [1]",
+            "Hamas launched a surprise attack. [3][4][5]",
+            "Over 1,000 people were killed. [2]"
           ]
         }
         """,
@@ -60,8 +61,8 @@ def parse_paragraph_into_claims(paragraph: str, get_model: Callable) -> List[str
         return [s.strip() for s in sentences if s.strip()]
 
 
-def extract_citation_markers(claim: str) -> List[int]:
-    """Extract citation markers from a claim (e.g., [1], [2]).
+def extract_citation_markers(claim: str) -> List[int|str]:
+    """Extract citation markers from a claim (e.g., [1], [2], [o]).
 
     Args:
         claim: The claim text
@@ -71,9 +72,9 @@ def extract_citation_markers(claim: str) -> List[int]:
     """
     import re
 
-    pattern = r"\[(\d+)\]"
+    pattern = r"\[([a-zA-Z\d]+)\]"
     matches = re.findall(pattern, claim)
-    return [int(m) for m in matches]
+    return [m for m in matches]
 
 
 def run_text_scanners(paragraph: str, article_topic: str, get_model: Callable) -> List[BiasFinding]:
@@ -101,9 +102,8 @@ def run_text_scanners(paragraph: str, article_topic: str, get_model: Callable) -
 
     return all_findings
 
-
 def run_source_analyzers(
-    claim: str, citation_indices: List[int], refs: List[Dict], get_model: Callable
+    claim: str, citation_indices: List[int|str], refs: List[Dict], get_model: Callable
 ) -> List[SourceAnalysis]:
     """Run source analysis tools on citations for a claim.
 
@@ -121,7 +121,7 @@ def run_source_analyzers(
     # Get citation details for this claim
     claim_citations = []
     for idx in citation_indices:
-        matching_ref = next((r for r in refs if r["index"] == idx), None)
+        matching_ref = next((r for r in refs if r["key"] == idx), None)
         if matching_ref:
             claim_citations.append(matching_ref)
 
@@ -130,11 +130,12 @@ def run_source_analyzers(
 
     # Run claim verification by scraping actual source content
     for citation in claim_citations:
+        # TODO: notes don't necessarily have URLs. Proper handling needed. potentially injecting notes in previous step as part of context for textual bias analysis
         if citation.get("url"):
             verification_analysis = SOURCE_ANALYZER_TOOLS["verify_claim_against_source"](
                 claim_text=claim,
                 source_url=citation["url"],
-                citation_index=citation["index"],
+                citation_index=citation["key"],
                 get_model=get_model,
             )
             all_analyses.append(verification_analysis)
@@ -143,7 +144,6 @@ def run_source_analyzers(
             verification_score = verification_analysis.report.get("verification_score", 0.0)
             if verification_score < 0.5:
                 print(f"        ⚠️  Weak source detected (score: {verification_score:.2f})")
-
     # Run source integrity analysis on each citation
     for citation in claim_citations:
         if citation.get("url"):

@@ -18,7 +18,7 @@ class SourceAnalysis:
     """Standard output schema for source analysis tools."""
 
     source_id: str  # The source description (e.g., 'Reuters, Oct 31')
-    analysis_type: str  # The type of analysis performed (e.g., 'integrity', 'clustering', 'diversity')
+    analysis_type: str  # The type of analysis performed (e.g., 'integrity', 'clustering', 'diversity', 'political_bias')
     report: dict[str, Any]  # A custom object containing the specific findings
 
 
