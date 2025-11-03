@@ -332,9 +332,18 @@ def generate_paragraph_summary(report_card: Dict[str, Any], get_model: Callable)
         {
           "overall_bias_score": <0-10>,
           "overall_factuality_score": <0-10>,
+          "political_leaning": "<Left([-1,0)|Right([0,1]|Center(≈0)>",
+          "representative_example": "a direct quote from the text that best exemplifies the bias found",
           "key_issues": ["issue 1", "issue 2", ...],
           "summary": "brief summary of findings"
         }
+        
+        For political_leaning, negative scores indicate Left-leaning, positive scores indicate Right-leaning, and near-zero scores indicate Center.
+        
+        For representative_example:
+        - Select a direct quote from the paragraph that best demonstrates the most significant bias
+        - This should be a concrete example that readers can immediately understand
+        - If no significant bias is found, you may use an empty string ""
         """,
         get_model=get_model,
     )
@@ -402,8 +411,26 @@ def generate_page_summary(paragraph_summaries: List[Dict[str, Any]], get_model: 
         {
           "overall_bias_score": <0-10>,
           "overall_factuality_score": <0-10>,
-          "summary": "comprehensive summary of page bias and factuality"
+          "overall_political_leaning": "<Left[-1,0]|Right[0,1]|Center(≈0)>",
+          "representative_examples": ["example 1", "example 2", "example 3"],
+          "summary": "comprehensive summary of page bias and factuality - make this intriguing and click-baity while remaining factual"
         }
+        
+        For overall_political_leaning:
+        - Synthesize the political_leaning from all paragraph summaries
+        - Use "Left", "Right", "Center". Indicated strength with brackets: Left[-1,0], Right[0,1], Center(≈0)
+        
+        For representative_examples:
+        - Select the 3-5 most compelling examples from all paragraph summaries
+        - These should be the most striking instances of bias found
+        - Include direct quotes that demonstrate the bias clearly
+        
+        For summary:
+        - Write an engaging, intriguing summary that captures attention
+        - Be factual but make it compelling - think NY Times headline style
+        - Highlight the most surprising or significant findings
+        - Keep it concise but impactful
+        - Use formal or journalistic tone, don't sound like clickbait
         """,
         get_model=get_model,
     )

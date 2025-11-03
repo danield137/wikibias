@@ -10,7 +10,7 @@ from wikibias.wiki import get_text_and_refs
 from wikibias.analyze import orchestrate_paragraph_analysis, generate_paragraph_summary, generate_page_summary
 
 # Initialize global model getter
-get_model = model_provider(local=True)
+get_model = model_provider()
 
 
 def analyze_wikipedia_page(title: str, max_paragraphs: Optional[int] = None) -> str:

@@ -562,50 +562,47 @@ def analyze_political_alignment(full_text: str, get_model: Callable) -> list[Bia
     agent = create_agent(
         name="PoliticalAlignmentAnalyzer",
         instructions=f"""
-        You are a staff writer in a prestigious newspaper well regarded for its neutrality and fact checking. Analyze the political alignment or ideological framing of the following text AS A WHOLE.
-        
-        IMPORTANT: Read the ENTIRE text carefully before making judgments. Consider the overall balance and context.
-        
-        Use a strength score from -1.0 to +1.0 where:
-        - -1.0 = Strong left-leaning / progressive bias
-        - -0.5 = Moderate left-leaning bias
-        - 0.0 = Neutral / balanced
-        - +0.5 = Moderate right-leaning bias
-        - +1.0 = Strong right-leaning / conservative bias
-        
-        Consider the ENTIRE text, not just individual sentences:
-        - Word choice and framing across all content
-        - What facts are emphasized vs. omitted throughout
-        - How events or groups are characterized overall
-        - Underlying assumptions or value judgments
-        - The balance of perspectives presented
-        
-        DO NOT flag as biased:
-        - Factual reporting that happens to mention one side first
-        - Balanced text that presents both perspectives
-        - Text that is neutral in tone even if discussing controversial topics
-        
-        DO flag:
-        - Clear, systematic bias in how information is presented
-        - Obvious framing that favors one political perspective
-        - Significant omission or minimization of key facts that would shift the narrative
-        
-        Be nuanced: Only flag when there is clear evidence of political bias in the OVERALL text.
-        
-        Output ONLY valid JSON in this format:
+        You are a senior political analyst and staff writer at a prestigious newspaper known for strict neutrality, factual precision, and context-sensitive reporting. 
+        Your task is to evaluate the **overall ideological framing or political alignment** of the following text in its entirety.
+
+        ### Evaluation Scale
+        Use a numeric strength score from -1.0 to +1.0:
+        - -1.0 → Strongly left-leaning or progressive framing
+        - -0.5 → Moderately left-leaning framing
+        -  0.0 → Neutral / balanced framing
+        - +0.5 → Moderately right-leaning framing
+        - +1.0 → Strongly right-leaning or conservative framing
+
+        ### Method
+        1. Read the **entire text** before forming judgment.
+        2. Focus on *systematic framing patterns*, not isolated phrases.
+        3. Evaluate based on:
+          - **Framing of power dynamics** (e.g., oppressed vs. oppressor)
+          - **Moral asymmetry** (e.g., depicting one side as colonizer, aggressor, or inherently unjust)
+          - **Value language** (e.g., moral judgments, emotional intensifiers, or charged historical terms)
+          - **Fact emphasis or omission** (what context is highlighted or downplayed)
+          - **Implicit worldview** (collectivism vs. nationalism, decolonization vs. sovereignty, etc.)
+
+        ### Important Distinctions
+        - Do **not** penalize factual or descriptive reporting.
+        - Do **not** infer bias from topic choice alone.
+        - **Do** flag ideological framing that systematically favors one moral or political perspective across the passage.
+
+        ### Output Format
+        Return ONLY valid JSON:
         {{
           "findings": [
             {{
               "kind": "political_alignment",
               "strength": <-1.0 to +1.0>,
-              "text": "exact text span showing alignment",
+              "text": "exact text span illustrating the alignment",
               "offset": [start_index, end_index],
-              "explanation": "Explanation of the political alignment detected, considering the full context and overall balance"
+              "explanation": "Concise justification describing the ideological framing, power asymmetry, or moral weighting observed in the full passage."
             }}
           ]
         }}
 
-        If for some reason you cannot compute a value for a field, use null.
+        If uncertain or unable to determine alignment, use `null` for the relevant fields.
         """,
         get_model=get_model,
     )

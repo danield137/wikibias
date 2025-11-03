@@ -1,52 +1,23 @@
-import ast
-import logging
 from typing import Any, Callable
 from smolagents import OpenAIServerModel, ToolCallingAgent, LogLevel
 import json
+import dotenv
 
-# Bias types for content analysis (paragraphs, pages)
-CONTENT_BIAS_TYPES = [
-    "Ideological / Political Bias",
-    "Emotional / Sentiment Bias",
-    "Selection / Omission Bias",
-    "Framing Bias",
-    "Confirmation / Cognitive Bias",
-    "Geographic / Cultural Bias",
-    "Commercial / Attention Bias",
-    "Temporal / Recency Bias",
-    "Visual / Imagery Bias",
-    "Statistical / Data Bias",
-    "Source Bias",
-    "Narrative Bias",
-]
+dotenv.load_dotenv()
 
-# Bias types for source analysis
-SOURCE_BIAS_TYPES = [
-    "Ideological Alignment Bias",
-    "Audience Confirmation Bias",
-    "National / Cultural Bias",
-    "Commercial / Ownership Bias",
-    "Sensationalism / Attention Bias",
-    "Access / Source Bias",
-    "Elitism / Class Bias",
-    "Status Quo / Institutional Bias",
-    "Reputational / Brand Bias",
-    "Geopolitical Bias",
-    "Editorial Agenda Bias",
-    "Platform Algorithmic Bias",
-]
+import os
 
-
-def model_provider(local=False):
+def model_provider() -> Callable[[], OpenAIServerModel]:
     """Factory function that returns a model getter."""
+    local = os.getenv("LOCAL", "False").lower() in ("true", "1", "yes")
     if local:
         model = OpenAIServerModel(
-            model_id="openai/gpt-oss-20b",  #"google/gemma-3-12b",
-            api_base="http://localhost:1234/v1",
+            model_id=os.getenv("MODEL_ID", "openai/gpt-oss-20b"),
+            api_base=os.getenv("API_BASE", "http://localhost:1234/v1"),
             api_key="not-needed",
         )
     else:
-        model = OpenAIServerModel(model_id="gpt-4o")
+        model = OpenAIServerModel(model_id=os.getenv("MODEL_ID", "gpt-5"))
 
     def get_model():
         return model
